@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getCase, discoverClue, requestHint, errMsg } from "../api";
-import { Loader, ErrorBox } from "../components/ui";
+import { Loader, ErrorBox, Avatar, ProgressBar } from "../components/ui";
+import { LockIcon, CheckIcon, BulbIcon } from "../components/icons";
 
 export default function InvestigationRoom() {
   const { id } = useParams();
@@ -28,9 +29,7 @@ export default function InvestigationRoom() {
       const r = await discoverClue(id, clue.id);
       setData((d) => ({
         ...d,
-        clues: d.clues.map((c) =>
-          c.id === clue.id ? { ...c, discovered: true, text: r.clue.text } : c
-        ),
+        clues: d.clues.map((c) => (c.id === clue.id ? { ...c, discovered: true, text: r.clue.text } : c)),
       }));
     } catch (e) {
       setNotice(errMsg(e));
@@ -58,95 +57,142 @@ export default function InvestigationRoom() {
   }
 
   if (error) return <ErrorBox message={error} />;
-  if (!data) return <Loader text="Opening the case file…" />;
+  if (!data) return <Loader text="Opening the case file" />;
 
   const found = data.clues.filter((c) => c.discovered).length;
+  const hintsLeft = data.hintsAllowed - data.hintsUsed;
 
   return (
-    <div className="space-y-8">
-      <section>
-        <p className="text-xs uppercase tracking-widest text-amber-400">{data.difficulty} case</p>
-        <h2 className="mt-1 text-3xl font-bold">{data.title}</h2>
-        <p className="mt-4 whitespace-pre-line text-zinc-300">{data.story}</p>
-      </section>
+    <div className="grid items-start gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="min-w-0 space-y-12">
+        <section>
+          <span className="rounded-full bg-violet-500/15 px-3 py-1 text-xs font-medium capitalize text-violet-200 ring-1 ring-violet-300/20">
+            {data.difficulty} case
+          </span>
+          <h1 className="mt-4 font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+            {data.title}
+          </h1>
+          <p className="mt-5 max-w-prose whitespace-pre-line text-[1.05rem] leading-relaxed text-ink/85">{data.story}</p>
+        </section>
 
-      <section className="flex flex-wrap gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-sm">
-        <span>🔎 Clues found: <b>{found}/{data.clues.length}</b></span>
-        <span>💡 Hints used: <b>{data.hintsUsed}/{data.hintsAllowed}</b></span>
-      </section>
-
-      {notice && <ErrorBox message={notice} />}
-
-      <section>
-        <h3 className="mb-3 text-xl font-semibold">Suspects</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.suspects.map((s) => (
-            <div key={s.id} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-              <p className="font-semibold">{s.name}</p>
-              <p className="text-sm text-amber-400">{s.role}</p>
-              <p className="mt-2 text-sm text-zinc-300">{s.description}</p>
-              <p className="mt-2 text-sm text-zinc-400"><b>Alibi:</b> {s.alibi}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h3 className="mb-3 text-xl font-semibold">Clues</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {data.clues.map((c) =>
-            c.discovered ? (
-              <div key={c.id} className="rounded-lg border border-amber-700 bg-amber-500/5 p-4">
-                <p className="font-semibold text-amber-400">{c.title}</p>
-                <p className="mt-2 text-sm text-zinc-300">{c.text}</p>
-              </div>
-            ) : (
-              <button
-                key={c.id}
-                onClick={() => openClue(c)}
-                disabled={busy}
-                className="rounded-lg border border-dashed border-zinc-700 bg-zinc-900 p-4 text-left hover:border-amber-500 disabled:opacity-50"
-              >
-                <p className="font-semibold">🔒 {c.title}</p>
-                <p className="mt-1 text-xs text-zinc-500">Click to investigate</p>
-              </button>
-            )
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-xl font-semibold">Hints</h3>
-          <button
-            onClick={getHint}
-            disabled={busy || data.hintsUsed >= data.hintsAllowed}
-            className="rounded border border-zinc-600 px-3 py-1 text-sm hover:border-amber-500 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Request hint (−10 pts)
-          </button>
-        </div>
-        {data.revealedHints.length === 0 ? (
-          <p className="text-sm text-zinc-500">No hints used yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {data.revealedHints.map((h, i) => (
-              <li key={h.id} className="rounded-lg bg-zinc-900 p-3 text-sm text-zinc-300">
-                <b className="text-amber-400">Hint {i + 1}:</b> {h.text}
-              </li>
+        <section>
+          <h2 className="mb-4 font-display text-xl font-semibold">
+            Suspects <span className="ml-1 text-base font-normal text-mute">{data.suspects.length}</span>
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {data.suspects.map((s) => (
+              <article key={s.id} className="glass p-5">
+                <div className="flex items-center gap-3">
+                  <Avatar name={s.name} />
+                  <div className="min-w-0">
+                    <h3 className="font-display font-semibold leading-tight">{s.name}</h3>
+                    <p className="text-sm text-violet-300">{s.role}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-relaxed text-ink/80">{s.description}</p>
+                <div className="mt-4 border-t border-line pt-4">
+                  <p className="text-xs font-semibold text-mute">Alibi</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink/80">{s.alibi}</p>
+                </div>
+              </article>
             ))}
-          </ul>
-        )}
-      </section>
+          </div>
+        </section>
 
-      <div className="pb-8 text-center">
-        <Link
-          to={`/case/${id}/accuse`}
-          className="inline-block rounded-lg bg-red-600 px-6 py-3 font-semibold hover:bg-red-500"
-        >
-          Make Accusation
-        </Link>
+        <section>
+          <h2 className="mb-4 font-display text-xl font-semibold">
+            Clues{" "}
+            <span className="ml-1 text-base font-normal text-mute">
+              {found} of {data.clues.length} found
+            </span>
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {data.clues.map((c) =>
+              c.discovered ? (
+                <article key={c.id} className="reveal glass border-violet-300/30 bg-violet-500/[0.07] p-5">
+                  <h3 className="flex items-center gap-2 font-display font-semibold text-violet-200">
+                    <CheckIcon width={18} height={18} />
+                    {c.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-ink/85">{c.text}</p>
+                </article>
+              ) : (
+                <button
+                  key={c.id}
+                  onClick={() => openClue(c)}
+                  disabled={busy}
+                  className="glass group p-5 text-left transition duration-300 hover:-translate-y-0.5 hover:border-violet-300/40 disabled:opacity-50"
+                >
+                  <h3 className="flex items-center gap-2 font-display font-semibold">
+                    <LockIcon width={18} height={18} className="text-mute transition-colors group-hover:text-violet-300" />
+                    {c.title}
+                  </h3>
+                  <p className="mt-3 text-sm text-mute">Select to investigate</p>
+                </button>
+              )
+            )}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-4 font-display text-xl font-semibold">Hints</h2>
+          {data.revealedHints.length === 0 ? (
+            <p className="text-sm text-mute">No hints used yet. Each hint costs 10 points.</p>
+          ) : (
+            <ul className="space-y-3">
+              {data.revealedHints.map((h, i) => (
+                <li key={h.id} className="reveal glass flex gap-3 p-4">
+                  <BulbIcon className="mt-0.5 shrink-0 text-violet-300" />
+                  <p className="text-sm leading-relaxed text-ink/85">
+                    <span className="font-semibold text-violet-200">Hint {i + 1}.</span> {h.text}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
+
+      <aside className="space-y-4 lg:sticky lg:top-24">
+        <div className="glass space-y-6 p-5">
+          <h2 className="font-display text-lg font-semibold">Progress</h2>
+
+          <div>
+            <div className="mb-2 flex justify-between text-sm">
+              <span className="text-mute">Clues found</span>
+              <span className="font-semibold">
+                {found} of {data.clues.length}
+              </span>
+            </div>
+            <ProgressBar value={found} max={data.clues.length} />
+          </div>
+
+          <div>
+            <div className="mb-2 flex justify-between text-sm">
+              <span className="text-mute">Hints used</span>
+              <span className="font-semibold">
+                {data.hintsUsed} of {data.hintsAllowed}
+              </span>
+            </div>
+            <ProgressBar value={data.hintsUsed} max={data.hintsAllowed} />
+          </div>
+
+          <div className="space-y-3 border-t border-line pt-5">
+            <button onClick={getHint} disabled={busy || hintsLeft <= 0} className="btn btn-ghost w-full">
+              <BulbIcon width={18} height={18} />
+              Request a hint
+            </button>
+            <p className="text-center text-xs text-mute">
+              {hintsLeft > 0 ? `Costs 10 points. ${hintsLeft} left.` : "No hints left."}
+            </p>
+            <Link to={`/case/${id}/accuse`} className="btn btn-primary w-full">
+              Make an accusation
+            </Link>
+          </div>
+        </div>
+
+        {notice && <ErrorBox message={notice} showHome={false} />}
+      </aside>
     </div>
   );
 }

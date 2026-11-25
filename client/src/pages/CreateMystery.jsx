@@ -3,11 +3,27 @@ import { useNavigate } from "react-router-dom";
 import { createCase, errMsg } from "../api";
 import { Loader, ErrorBox } from "../components/ui";
 
-const LEVELS = [
-  { key: "easy", label: "Easy", info: "3 suspects · 5 clues · 2 hints" },
-  { key: "medium", label: "Medium", info: "4 suspects · 7 clues · 3 hints" },
-  { key: "hard", label: "Hard", info: "5 suspects · 9 clues · 3 hints" },
+const LEVELS = {
+  easy: { label: "Easy", blurb: "A short case. Good for a first run.", suspects: 3, clues: 5, hints: 2, base: 100 },
+  medium: { label: "Medium", blurb: "A fuller cast and a few red herrings.", suspects: 4, clues: 7, hints: 3, base: 150 },
+  hard: { label: "Hard", blurb: "A big cast and more to untangle.", suspects: 5, clues: 9, hints: 3, base: 200 },
+};
+
+const STEPS = [
+  "Writing the story",
+  "Casting the suspects",
+  "Hiding the clues",
+  "Checking the case holds together",
 ];
+
+function Row({ label, value }) {
+  return (
+    <div className="flex justify-between py-3">
+      <dt className="text-mute">{label}</dt>
+      <dd className="font-semibold">{value}</dd>
+    </div>
+  );
+}
 
 export default function CreateMystery() {
   const navigate = useNavigate();
@@ -16,7 +32,8 @@ export default function CreateMystery() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const valid = premise.trim().length >= 10 && premise.trim().length <= 300;
+  const len = premise.trim().length;
+  const valid = len >= 10 && len <= 300;
 
   async function submit(e) {
     e.preventDefault();
@@ -32,56 +49,85 @@ export default function CreateMystery() {
     }
   }
 
-  if (loading) return <Loader text="Gathering evidence… this can take up to 20 seconds." />;
+  if (loading) return <Loader steps={STEPS} text="This usually takes 10 to 20 seconds." />;
+
+  const level = LEVELS[difficulty];
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h2 className="text-2xl font-bold">Create a Mystery</h2>
-      <form onSubmit={submit} className="mt-6 space-y-6">
+    <div className="grid items-start gap-8 lg:grid-cols-[1fr_340px]">
+      <form onSubmit={submit} className="glass space-y-8 p-6 sm:p-8">
         <div>
-          <label className="mb-2 block text-sm text-zinc-400">Premise</label>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Create a mystery</h1>
+          <p className="mt-2 text-mute">
+            Describe the setting or the event. The more specific you are, the better the case.
+          </p>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-baseline justify-between">
+            <label htmlFor="premise" className="text-sm font-medium">
+              Premise
+            </label>
+            <span className={`text-xs transition-colors ${len >= 10 ? "text-violet-300" : "text-mute"}`}>{len}/300</span>
+          </div>
           <textarea
+            id="premise"
+            className="field"
+            rows={5}
+            maxLength={300}
             value={premise}
             onChange={(e) => setPremise(e.target.value)}
-            rows={4}
-            maxLength={300}
-            placeholder="e.g. A theft during a college fest"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-3 outline-none focus:border-amber-500"
+            placeholder="A theft during a college fest"
           />
-          <p className="mt-1 text-right text-xs text-zinc-500">{premise.trim().length}/300 (min 10)</p>
+          {len > 0 && len < 10 && <p className="mt-2 text-xs text-mute">Write at least 10 characters.</p>}
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm text-zinc-400">Difficulty</label>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {LEVELS.map((l) => (
-              <button
-                type="button"
-                key={l.key}
-                onClick={() => setDifficulty(l.key)}
-                className={`rounded-lg border p-3 text-left ${
-                  difficulty === l.key
-                    ? "border-amber-500 bg-amber-500/10"
-                    : "border-zinc-700 bg-zinc-900 hover:border-zinc-500"
-                }`}
-              >
-                <p className="font-semibold">{l.label}</p>
-                <p className="text-xs text-zinc-400">{l.info}</p>
-              </button>
-            ))}
+        <fieldset>
+          <legend className="mb-3 text-sm font-medium">Difficulty</legend>
+          <div role="radiogroup" className="grid gap-3 sm:grid-cols-3">
+            {Object.entries(LEVELS).map(([key, l]) => {
+              const active = key === difficulty;
+              return (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  key={key}
+                  onClick={() => setDifficulty(key)}
+                  className={`rounded-xl border p-4 text-left transition duration-300 ${
+                    active
+                      ? "glow-selected border-violet-300/60 bg-violet-500/10"
+                      : "border-line bg-white/[0.02] hover:border-violet-300/30 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  <p className="font-display font-semibold">{l.label}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-mute">{l.blurb}</p>
+                </button>
+              );
+            })}
           </div>
-        </div>
+        </fieldset>
 
-        {error && <ErrorBox message={error} />}
+        {error && <ErrorBox message={error} showHome={false} />}
 
-        <button
-          type="submit"
-          disabled={!valid}
-          className="w-full rounded-lg bg-amber-500 py-3 font-semibold text-zinc-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Generate Mystery
+        <button type="submit" disabled={!valid} className="btn btn-primary w-full py-3.5">
+          Generate mystery
         </button>
       </form>
+
+      <aside className="glass p-6 lg:sticky lg:top-24">
+        <h2 className="font-display text-lg font-semibold">Your case file</h2>
+        <p className="mt-1 text-sm text-mute">What you will get on {level.label.toLowerCase()}.</p>
+        <dl key={difficulty} className="reveal mt-5 divide-y divide-line text-sm">
+          <Row label="Suspects" value={level.suspects} />
+          <Row label="Clues" value={level.clues} />
+          <Row label="Hints available" value={level.hints} />
+          <Row label="Points for solving" value={level.base} />
+        </dl>
+        <p className="mt-5 rounded-xl bg-white/[0.04] p-4 text-sm leading-relaxed text-mute">
+          Each clue you open adds 5 points. Each hint takes away 10. A wrong accusation earns no solving points.
+        </p>
+      </aside>
     </div>
   );
 }
