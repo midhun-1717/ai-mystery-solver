@@ -29,7 +29,14 @@ const caseSchema = new mongoose.Schema(
       hintsUsed: { type: Number, default: 0 },
     },
     accusation: { suspectId: String, correct: Boolean, accusedAt: Date },
-    score: { base: Number, clueBonus: Number, hintPenalty: Number, total: Number },
+    score: {
+      base: Number,
+      timeBonus: Number,
+      clueBonus: Number,
+      hintPenalty: Number,
+      elapsedSeconds: Number,
+      total: Number,
+    },
     status: { type: String, enum: ["active", "completed"], default: "active" },
   },
   { timestamps: true }

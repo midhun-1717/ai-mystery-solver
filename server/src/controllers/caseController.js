@@ -4,13 +4,18 @@ import Case from "../models/Case.js";
 import { DIFFICULTY } from "../config/difficulty.js";
 import { AppError } from "../middleware/errors.js";
 import { generateMystery } from "../services/gemini.js";
-import { calculateScore } from "../services/scoring.js";
+import { calculateScore, TIME_BONUS_MAX, SECONDS_PER_POINT, CLUE_BONUS } from "../services/scoring.js";
 
 const createSchema = z.object({
   premise: z.string().trim().min(10).max(300),
   difficulty: z.enum(["easy", "medium", "hard"]),
 });
 const accuseSchema = z.object({ suspectId: z.string().min(1) });
+
+// Seconds since the case was created. Measured on the server so it can't be faked.
+function elapsedSince(date) {
+  return Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
+}
 
 async function findCase(id, withSolution = false) {
   if (!mongoose.isValidObjectId(id)) throw new AppError(400, "INVALID_ID", "Invalid case id.");
@@ -40,6 +45,9 @@ function toPublicCase(doc) {
     hintsUsed: c.progress.hintsUsed,
     hintsAllowed: DIFFICULTY[c.difficulty].hints,
     revealedHints: c.hints.slice(0, c.progress.hintsUsed).map((h) => ({ id: h.id, text: h.text })),
+    elapsedSeconds: elapsedSince(c.createdAt),
+    timeBonus: { max: TIME_BONUS_MAX, secondsPerPoint: SECONDS_PER_POINT },
+    clueBonusPoints: CLUE_BONUS,
   };
 }
 
@@ -52,8 +60,9 @@ function buildResult(c) {
     explanation: c.solution.explanation,
     score: {
       base: c.score.base,
-      cluesFound: c.progress.discoveredClueIds.length,
+      timeBonus: c.score.timeBonus,
       clueBonus: c.score.clueBonus,
+      elapsedSeconds: c.score.elapsedSeconds,
       hintsUsed: c.progress.hintsUsed,
       hintPenalty: c.score.hintPenalty,
       total: c.score.total,
@@ -124,8 +133,10 @@ export async function accuse(req, res) {
   const score = calculateScore({
     correct,
     difficulty: c.difficulty,
-    cluesFound: c.progress.discoveredClueIds.length,
+    elapsedSeconds: elapsedSince(c.createdAt),
     hintsUsed: c.progress.hintsUsed,
+    cluesOpened: c.progress.discoveredClueIds.length,
+    totalClues: c.clues.length,
   });
   c.accusation = { suspectId, correct, accusedAt: new Date() };
   c.score = score;

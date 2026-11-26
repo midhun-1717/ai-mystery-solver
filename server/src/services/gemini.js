@@ -19,14 +19,30 @@ function buildPrompt(premise, difficulty) {
   return `You are a mystery writer. Create a fictional, non-graphic whodunit based on this premise: "${premise}".
 Do not use real people.
 
+WRITING STYLE (very important):
+- Write clear, natural, fluent English, like a good young-adult mystery novel. Use full, well-formed sentences with a mix of short and medium lengths, and keep a vivid, atmospheric feel.
+- Use everyday words. Whenever you would reach for a rare, formal or literary word, use the common word instead. For example: "careful" not "meticulous", "crowd" not "multitude", "chaos" not "pandemonium", "huge" not "monumental", "reputation" not "prestige", "thief" not "perpetrator", "half-open" not "ajar", "famous" not "revered", "detailed" not "ornate", "deep care" not "obsessive reverence".
+- Never use words like "palpable", "tapestry", "clandestine", "ambiguous", "reclusive", "avarice" or "illuminating".
+- Job titles must be plain, like "Sports teacher", "Security officer" or "Event organiser".
+- Use this style everywhere: the story, suspect descriptions, alibis, clue text, hints and the explanation.
+- Write each alibi as what the suspect claimed, for example "Claimed she was in her room finishing paperwork."
+
+Style example (too hard, then the style to use):
+Too hard: "The theft was discovered just after midnight by Professor Thorne during her final rounds. Panic rippled through the few remaining staff."
+Use: "Just after midnight, Professor Thorne discovered the theft during her final rounds. Panic quickly spread among the few staff members still on campus."
+Too hard: "A scholar with an almost obsessive reverence for artifacts."
+Use: "A dedicated scholar who treats historical items with extreme care."
+Too hard: "identifying a perpetrator amidst the festive pandemonium would be a monumental task."
+Use: "tracking down the thief in the middle of the fest chaos would be a massive challenge."
+
 Return ONLY valid JSON, no markdown, in exactly this shape:
 {
-  "title": "string",
-  "story": "string (2-3 paragraphs setting the scene)",
+  "title": "string (short)",
+  "story": "string (3 paragraphs setting the scene)",
   "suspects": [{"id":"s1","name":"","role":"","description":"","alibi":""}],
   "clues": [{"id":"c1","title":"short label, never names the culprit","text":"full clue","pointsTo":"suspect id or null"}],
   "hints": [{"id":"h1","text":""}],
-  "solution": {"culpritId":"s1","explanation":"explain who did it, citing the clues"}
+  "solution": {"culpritId":"s1","explanation":"explain who did it and why, citing the clues"}
 }
 
 Rules:
@@ -78,7 +94,7 @@ export async function generateMystery(premise, difficulty) {
       const response = await ai.models.generateContent({
         model,
         contents: buildPrompt(premise, difficulty),
-        config: { responseMimeType: "application/json", temperature: 0.9 },
+        config: { responseMimeType: "application/json", temperature: 0.8 },
       });
       const raw = response.text.replace(/```json|```/g, "").trim();
       const data = mysterySchema.parse(JSON.parse(raw));
